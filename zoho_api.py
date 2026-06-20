@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 class ShaktiCreatorAPI:
     def __init__(self):
         if getattr(sys, 'frozen', False):
-            _env_dir = Path(sys._MEIPASS)
+            _env_dir = Path(sys.executable).parent
         else:
             _env_dir = Path(__file__).resolve().parent
             
