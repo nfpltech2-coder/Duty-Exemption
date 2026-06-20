@@ -22,3 +22,5 @@ duty_rates.json
 # OS generated files
 .DS_Store
 Thumbs.db
+
+USER_GUIDE.md
