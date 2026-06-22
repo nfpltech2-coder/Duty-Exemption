@@ -70,7 +70,7 @@ def process_duty_exemption(file_path: str) -> tuple[List[Dict[str, Any]], str]:
 
 
     # Required columns
-    required_columns = ['BE No', 'BE Date', 'CTH', 'Assessable Value (INR)', 'Total Basic Duty (INR)', 'Job No']
+    required_columns = ['BE No', 'BE Date', 'CTH', 'Assessable Value (INR)', 'Total Basic Duty (INR)', 'Job No', 'COO No']
     
     # Clean the column names
     df.columns = df.columns.str.strip()
@@ -81,12 +81,11 @@ def process_duty_exemption(file_path: str) -> tuple[List[Dict[str, Any]], str]:
 
     duty_rates = load_duty_rates()
 
-    # Clean the column and filter
-    df['Total Basic Duty (INR)'] = pd.to_numeric(df['Total Basic Duty (INR)'], errors='coerce')
-    filtered_df = df[df['Total Basic Duty (INR)'] == 0].copy()
+    # Filter where COO No is present
+    filtered_df = df[df['COO No'].notna() & (df['COO No'].astype(str).str.strip() != '')].copy()
 
     if filtered_df.empty:
-        return [], target_sheet
+        return [], target_sheet, {}
 
     # Check for missing CTHs first
     missing_cths = set()
@@ -141,9 +140,21 @@ def process_duty_exemption(file_path: str) -> tuple[List[Dict[str, Any]], str]:
             continue
 
         rate = duty_rates[cth_val]
-        basic_duty = assessable_value * rate
-        sws = basic_duty * 0.10
-        exempted_duty = basic_duty + sws
+        expected_basic_duty = assessable_value * rate
+        
+        actual_basic_duty = pd.to_numeric(row['Total Basic Duty (INR)'], errors='coerce')
+        if pd.isna(actual_basic_duty):
+            actual_basic_duty = 0.0
+            
+        if actual_basic_duty == 0:
+            exempted_basic_duty = expected_basic_duty
+        else:
+            exempted_basic_duty = expected_basic_duty - actual_basic_duty
+            if exempted_basic_duty < 0:
+                exempted_basic_duty = 0.0
+                
+        sws = exempted_basic_duty * 0.10
+        exempted_duty = exempted_basic_duty + sws
 
         if be_str not in results_by_be:
             results_by_be[be_str] = {
@@ -152,16 +163,27 @@ def process_duty_exemption(file_path: str) -> tuple[List[Dict[str, Any]], str]:
                 'BE Date Raw': be_datetime,  # Used for sorting
                 'BE Date': be_date_str,
                 'Row Count': 0,
-                'Total Exempted Duty': 0.0
+                'Total Exempted Duty': 0.0,
+                'Applied CTHs': set()
             }
         
         results_by_be[be_str]['Row Count'] += 1
         results_by_be[be_str]['Total Exempted Duty'] += exempted_duty
+        results_by_be[be_str]['Applied CTHs'].add((cth_val, rate))
 
     # Sort results by BE Date (ascending)
     final_results = list(results_by_be.values())
     final_results.sort(key=lambda x: x['BE Date Raw'] if not pd.isna(x['BE Date Raw']) else pd.Timestamp.max)
-    return final_results, target_sheet
+    
+    # Collect global applied rates for the pop-up
+    applied_rates = {}
+    for res in final_results:
+        for c, r in res['Applied CTHs']:
+            applied_rates[c] = r
+        # remove the set to avoid serialization issues or clutter if needed
+        del res['Applied CTHs']
+        
+    return final_results, target_sheet, applied_rates
 
 
 def generate_filtered_excel(input_file_path: str, sheet_name: str, be_no: str, output_file_path: str):
