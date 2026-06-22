@@ -1,21 +1,32 @@
 import os
+import sys
 import calendar
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 from typing import List, Dict, Any, Optional
 import threading
+
+from PIL import Image, ImageTk
 
 from logic import process_duty_exemption, load_duty_rates, save_duty_rates, MissingCTHError
 from zoho_api import ShaktiCreatorAPI
 
-# Brand Colors
-PRIMARY_BLUE = "#1F3F6E"
-ACCENT_RED = "#D8232A"
-DARK_TEXT = "#1E1E1E"
-MUTED_GRAY = "#6B7280"
-LIGHT_BG = "#F4F6F8"
-PANEL_WHITE = "#FFFFFF"
-HOVER_BLUE = "#2A528F"
+# Brand colours (matching Nagarkot Skoda app)
+BRAND_BLUE = "#0056b3"
+ACCENT_RED = "#dc3545"
+BG_WHITE = "#ffffff"
+TEXT_DARK = "#333333"
+TEXT_LIGHT = "#666666"
+APP_VERSION = "v1.0.0"
+
+
+def resource_path(relative_path: str) -> str:
+    """Resolve path for both dev and PyInstaller builds."""
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 
 class DutyRatesDialog(tk.Toplevel):
@@ -24,15 +35,15 @@ class DutyRatesDialog(tk.Toplevel):
         self.title("Manage Duty Rates")
         self.geometry("450x650")
         self.minsize(450, 600)
-        self.configure(bg=LIGHT_BG)
+        self.configure(bg=BG_WHITE)
         self.grab_set()
 
         self.rates = load_duty_rates()
 
-        tk.Label(self, text="Select a rate below to edit or delete it.", bg=LIGHT_BG, font=("Segoe UI", 10)).pack(pady=10)
+        tk.Label(self, text="Select a rate below to edit or delete it.", bg=BG_WHITE, font=("Segoe UI", 10)).pack(pady=10)
 
         # Treeview for rates
-        tree_frame = tk.Frame(self, bg=LIGHT_BG)
+        tree_frame = tk.Frame(self, bg=BG_WHITE)
         tree_frame.pack(fill=tk.BOTH, expand=True, padx=20)
         
         self.tree = ttk.Treeview(tree_frame, columns=("CTH", "Duty Rate"), show="headings", height=10)
@@ -49,21 +60,21 @@ class DutyRatesDialog(tk.Toplevel):
         self._populate()
         
         # Action buttons for selected item
-        action_frame = tk.Frame(self, bg=LIGHT_BG)
+        action_frame = tk.Frame(self, bg=BG_WHITE)
         action_frame.pack(fill=tk.X, padx=20, pady=(5, 10))
         
         self.btn_delete = ttk.Button(action_frame, text="Delete Selected", command=self._on_delete, state=tk.DISABLED)
         self.btn_delete.pack(side=tk.RIGHT)
 
         # Add/Edit form
-        f = tk.Frame(self, bg=LIGHT_BG)
+        f = tk.Frame(self, bg=BG_WHITE)
         f.pack(fill=tk.X, padx=20, pady=10)
 
-        tk.Label(f, text="CTH:", bg=LIGHT_BG, font=("Segoe UI", 10)).grid(row=0, column=0, padx=5, pady=5, sticky=tk.E)
+        tk.Label(f, text="CTH:", bg=BG_WHITE, font=("Segoe UI", 10)).grid(row=0, column=0, padx=5, pady=5, sticky=tk.E)
         self.e_cth = ttk.Entry(f, font=("Segoe UI", 10))
         self.e_cth.grid(row=0, column=1, padx=5, pady=5)
 
-        tk.Label(f, text="Rate in % (e.g., 20 or 20%):", bg=LIGHT_BG, font=("Segoe UI", 10)).grid(row=1, column=0, padx=5, pady=5, sticky=tk.E)
+        tk.Label(f, text="Rate in % (e.g., 20 or 20%):", bg=BG_WHITE, font=("Segoe UI", 10)).grid(row=1, column=0, padx=5, pady=5, sticky=tk.E)
         self.e_rate = ttk.Entry(f, font=("Segoe UI", 10))
         self.e_rate.grid(row=1, column=1, padx=5, pady=5)
 
@@ -74,7 +85,7 @@ class DutyRatesDialog(tk.Toplevel):
         self.tree.bind("<Delete>", self._on_delete)
         
         if missing_cths:
-            tk.Label(self, text=f"Missing CTH detected. Please enter its rate.", bg=LIGHT_BG, fg=ACCENT_RED, font=("Segoe UI", 10, "bold")).pack(pady=(0, 10))
+            tk.Label(self, text=f"Missing CTH detected. Please enter its rate.", bg=BG_WHITE, fg=ACCENT_RED, font=("Segoe UI", 10, "bold")).pack(pady=(0, 10))
             self.e_cth.insert(0, str(missing_cths[0]))
             self.e_rate.focus_set()
 
@@ -147,14 +158,14 @@ class MonthPickerDialog(tk.Toplevel):
         super().__init__(parent)
         self.title("Select Month to Sync")
         self.resizable(False, False)
-        self.configure(bg=PANEL_WHITE)
+        self.configure(bg=BG_WHITE)
         self.grab_set()
 
         self.selected = None
         self._available_months = available_months
 
         tk.Label(self, text="Select which month's BE records to sync:",
-                 font=("Segoe UI", 11), bg=PANEL_WHITE, fg=DARK_TEXT
+                 font=("Segoe UI", 11), bg=BG_WHITE, fg=TEXT_DARK
                  ).pack(padx=30, pady=(20, 10))
 
         month_strs = [f"{calendar.month_name[m]} {y}" for y, m in available_months]
@@ -166,7 +177,7 @@ class MonthPickerDialog(tk.Toplevel):
         self.combo.current(0)
         self.combo.pack(padx=30, pady=(0, 20))
 
-        btn_frame = tk.Frame(self, bg=PANEL_WHITE)
+        btn_frame = tk.Frame(self, bg=BG_WHITE)
         btn_frame.pack(pady=(0, 20))
         ttk.Button(btn_frame, text="Proceed", style="Primary.TButton",
                    command=self._on_proceed).pack(side=tk.LEFT, padx=8)
@@ -197,7 +208,7 @@ class App:
         self.root = root
         self.root.title("Duty Exemption Updater - Nagarkot Forwarders")
         self.root.state("zoomed")
-        self.root.configure(bg=LIGHT_BG)
+        self.root.configure(bg=BG_WHITE)
 
         self._setup_styles()
 
@@ -207,6 +218,7 @@ class App:
         self.tree_items: Dict[str, str] = {}
         self.input_file_path: str = ""
         self.sheet_name_used: str = ""
+        self.applied_rates: Dict[int, float] = {}
         # Sort state: col_name -> bool (True = ascending)
         self._sort_state: Dict[str, bool] = {}
 
@@ -218,135 +230,155 @@ class App:
     def _setup_styles(self):
         style = ttk.Style()
         style.theme_use('clam')
+        style.configure("TFrame", background=BG_WHITE)
+        style.configure("TLabel", background=BG_WHITE, font=("Segoe UI", 10), foreground=TEXT_DARK)
+        style.configure("Header.TLabel", font=("Helvetica", 22, "bold"), foreground=BRAND_BLUE)
+        style.configure("SubHeader.TLabel", font=("Segoe UI", 9), foreground=TEXT_LIGHT)
+        style.configure("Footer.TLabel", font=("Segoe UI", 9), foreground=TEXT_LIGHT)
+        style.configure("TLabelframe", background=BG_WHITE)
+        style.configure("TLabelframe.Label", background=BG_WHITE, foreground=BRAND_BLUE, font=("Segoe UI", 11, "bold"))
+        
         style.configure("Primary.TButton",
-                        background=PRIMARY_BLUE, foreground=PANEL_WHITE,
-                        font=("Segoe UI", 11, "bold"), padding=8, borderwidth=0)
-        style.map("Primary.TButton", background=[("active", HOVER_BLUE)])
+                        background=BRAND_BLUE, foreground="white",
+                        font=("Segoe UI", 10, "bold"), padding=8, borderwidth=0)
+        style.map("Primary.TButton", background=[("active", "#004494")])
         
         style.configure("Secondary.TButton",
-                        background=MUTED_GRAY, foreground=PANEL_WHITE,
-                        font=("Segoe UI", 10), padding=6, borderwidth=0)
+                        background=TEXT_LIGHT, foreground="white",
+                        font=("Segoe UI", 10, "bold"), padding=6, borderwidth=0)
         style.map("Secondary.TButton", background=[("active", "#4B5563")])
 
         style.configure("Treeview",
-                        background=PANEL_WHITE, fieldbackground=PANEL_WHITE,
-                        foreground=DARK_TEXT, rowheight=30, font=("Segoe UI", 10))
+                        background=BG_WHITE, fieldbackground=BG_WHITE,
+                        foreground=TEXT_DARK, rowheight=30, font=("Segoe UI", 10))
         style.configure("Treeview.Heading",
-                        background=LIGHT_BG, foreground=PRIMARY_BLUE,
+                        background="#e1e1e1", foreground=BRAND_BLUE,
                         font=("Segoe UI", 10, "bold"))
-        style.map("Treeview", background=[('selected', PRIMARY_BLUE)])
+        style.map("Treeview", background=[('selected', BRAND_BLUE)], foreground=[('selected', "white")])
+        
+        style.configure("TNotebook", background=BG_WHITE, borderwidth=0)
+        style.configure("TNotebook.Tab", padding=[15, 5], font=("Segoe UI", 10, "bold"), background="#e1e1e1")
+        style.map("TNotebook.Tab", background=[("selected", BRAND_BLUE)], foreground=[("selected", "white")])
 
     # ------------------------------------------------------------------ header
     def _create_header(self):
-        hf = tk.Frame(self.root, bg=PANEL_WHITE, height=80)
-        hf.pack(fill=tk.X, side=tk.TOP)
-        hf.pack_propagate(False)
-        
-        # Adding manage duty rates button on the right
-        btn_manage = ttk.Button(hf, text="Manage Duty Rates", style="Secondary.TButton", command=self.open_duty_rates)
-        btn_manage.pack(side=tk.RIGHT, padx=20, pady=(25, 0))
+        hdr = ttk.Frame(self.root)
+        hdr.pack(fill="x", padx=40, pady=(20, 5))
+        hdr.columnconfigure(1, weight=1)
 
-        tk.Label(hf, text="DUTY EXEMPTION UPDATER",
-                 font=("Segoe UI", 22, "bold"), fg=PRIMARY_BLUE, bg=PANEL_WHITE
-                 ).pack(pady=(15, 0))
-        tk.Label(hf, text="Upload Excel to calculate and sync exempted duty to Shakti",
-                 font=("Segoe UI", 12), fg=MUTED_GRAY, bg=PANEL_WHITE).pack()
+        try:
+            logo_path = resource_path("Nagarkot Logo.png")
+            if os.path.exists(logo_path):
+                img = Image.open(logo_path)
+                h = 35
+                w = int((h / float(img.size[1])) * float(img.size[0]))
+                img = img.resize((w, h), Image.Resampling.LANCZOS)
+                self.logo_img = ImageTk.PhotoImage(img)
+                ttk.Label(hdr, image=self.logo_img).grid(row=0, column=0, rowspan=2, padx=(0, 30))
+        except Exception:
+            pass
+
+        ttk.Label(hdr, text="Duty Exemption Updater", style="Header.TLabel").grid(row=0, column=1, sticky="w")
+        ttk.Label(hdr, text="Upload Excel to calculate and sync exempted duty to Shakti", style="SubHeader.TLabel").grid(row=1, column=1, sticky="w")
+
+        btn_manage = ttk.Button(hdr, text="Manage Duty Rates", style="Secondary.TButton", command=self.open_duty_rates)
+        btn_manage.grid(row=0, column=2, rowspan=2, sticky="e")
 
     # ------------------------------------------------------------------ footer
     def _create_footer(self):
-        ff = tk.Frame(self.root, bg=LIGHT_BG, height=30)
-        ff.pack(fill=tk.X, side=tk.BOTTOM)
-        ff.pack_propagate(False)
-        tk.Label(ff, text="Nagarkot Forwarders Pvt. Ltd. ©",
-                 font=("Segoe UI", 9), fg=MUTED_GRAY, bg=LIGHT_BG
-                 ).pack(side=tk.LEFT, padx=20, pady=5)
+        f = ttk.Frame(self.root)
+        f.pack(fill="x", side="bottom", padx=40, pady=10)
+        ttk.Label(f, text="© Nagarkot Forwarders Pvt Ltd", style="Footer.TLabel").pack(side="left")
+        ttk.Label(f, text=APP_VERSION, style="Footer.TLabel").pack(side="right")
 
     # ------------------------------------------------------------------ body
     def _create_body(self):
-        self.body_frame = tk.Frame(self.root, bg=LIGHT_BG)
-        self.body_frame.pack(fill=tk.BOTH, expand=True, padx=40, pady=20)
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill="both", expand=True, padx=40, pady=10)
 
-        # Controls row
-        cf = tk.Frame(self.body_frame, bg=LIGHT_BG)
-        cf.pack(fill=tk.X, pady=(0, 20))
+        main_tab = ttk.Frame(self.notebook)
+        self.notebook.add(main_tab, text=" Upload & Sync ")
 
-        self.btn_upload = ttk.Button(cf, text="Upload Excel File",
-                                     style="Primary.TButton", command=self.upload_file)
-        self.btn_upload.pack(side=tk.LEFT)
+        body = ttk.Frame(main_tab)
+        body.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.lbl_status = tk.Label(cf, text="Please upload a file.",
-                                   font=("Segoe UI", 11), bg=LIGHT_BG, fg=DARK_TEXT)
-        self.lbl_status.pack(side=tk.LEFT, padx=20)
+        top = ttk.LabelFrame(body, text=" Upload Master Data Excel ", padding=15)
+        top.pack(fill="x", pady=(0, 10))
+        top.columnconfigure(1, weight=1)
 
-        self.btn_sync = ttk.Button(cf, text="Sync to Shakti",
-                                   style="Primary.TButton",
-                                   command=self.open_month_picker, state=tk.DISABLED)
-        self.btn_sync.pack(side=tk.RIGHT)
+        ttk.Label(top, text="Excel File:").grid(row=0, column=0, sticky="w", pady=5, padx=5)
+        self.filepath_var = tk.StringVar()
+        ttk.Entry(top, textvariable=self.filepath_var, state="readonly").grid(row=0, column=1, sticky="ew", pady=5, padx=5)
+        ttk.Button(top, text="Browse", command=self.upload_file).grid(row=0, column=2, padx=5)
 
-        # Tree
-        columns = ("Job No.", "BE No.", "BE Date", "Exempted Rows",
-                   "Total Exempted Duty (INR)", "Status")
-        self.tree = ttk.Treeview(self.body_frame, columns=columns,
-                                 show="headings", height=15)
+        btn_frame = ttk.Frame(top)
+        btn_frame.grid(row=1, column=0, columnspan=3, pady=10)
+        
+        self.lbl_status = ttk.Label(btn_frame, text="Please upload a file.", font=("Segoe UI", 11, "italic"), foreground=TEXT_LIGHT)
+        self.lbl_status.pack(side="left", padx=5)
+        
+        self.btn_sync = ttk.Button(btn_frame, text="SYNC TO SHAKTI", style="Primary.TButton", command=self.open_month_picker, state="disabled")
+        self.btn_sync.pack(side="right", padx=5)
+
+        preview = ttk.LabelFrame(body, text=" Preview (Right-click to copy)", padding=5)
+        preview.pack(fill="both", expand=True, pady=(0, 5))
+
+        columns = ("Job No.", "BE No.", "BE Date", "Exempted Rows", "Total Exempted Duty (INR)", "Status")
+        self.tree = ttk.Treeview(preview, columns=columns, show="headings", height=15)
 
         for col in columns:
             if col in self.SORTABLE_COLUMNS:
-                # Bind header click for sortable columns
-                self.tree.heading(col, text=col,
-                                  command=lambda c=col: self._sort_by_column(c))
+                self.tree.heading(col, text=col, command=lambda c=col: self._sort_by_column(c))
             else:
                 self.tree.heading(col, text=col)
 
-        self.tree.column("Job No.",                   anchor=tk.CENTER, width=120)
-        self.tree.column("BE No.",                    anchor=tk.CENTER, width=120)
-        self.tree.column("BE Date",                   anchor=tk.CENTER, width=120)
-        self.tree.column("Exempted Rows",             anchor=tk.CENTER, width=110)
-        self.tree.column("Total Exempted Duty (INR)", anchor=tk.CENTER, width=190)
-        self.tree.column("Status",                    anchor=tk.CENTER, width=280)
+        self.tree.column("Job No.", anchor="center", width=120)
+        self.tree.column("BE No.", anchor="center", width=120)
+        self.tree.column("BE Date", anchor="center", width=120)
+        self.tree.column("Exempted Rows", anchor="center", width=110)
+        self.tree.column("Total Exempted Duty (INR)", anchor="center", width=190)
+        self.tree.column("Status", anchor="center", width=280)
 
-        self.tree.tag_configure("error",   foreground="red")
+        self.tree.tag_configure("error", foreground=ACCENT_RED)
         self.tree.tag_configure("success", foreground="#15803d")
-        self.tree.tag_configure("syncing", foreground="#1d4ed8")
+        self.tree.tag_configure("syncing", foreground=BRAND_BLUE)
+        self.tree.tag_configure("even", background="#f8f9fa")
 
         self.tree.bind("<Button-3>", self.show_context_menu)
 
-        sb = ttk.Scrollbar(self.body_frame, orient=tk.VERTICAL, command=self.tree.yview)
+        sb = ttk.Scrollbar(preview, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscroll=sb.set)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        sb.pack(side=tk.RIGHT, fill=tk.Y)
+        self.tree.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
         
     def open_duty_rates(self, missing_cths: List[int] = None):
+        pwd = simpledialog.askstring("Security Check", "Enter Duty Rates Key:", show="*")
+        if pwd != "NAGARKOT123":
+            messagebox.showerror("Access Denied", "Incorrect key.")
+            return
         DutyRatesDialog(self.root, missing_cths=missing_cths)
 
     # ---------------------------------------------------------- sorting
     def _sort_by_column(self, col: str):
-        """Toggle sort order for the given column and repopulate tree."""
         ascending = not self._sort_state.get(col, False)
         self._sort_state[col] = ascending
-
         key_fn = self.SORTABLE_COLUMNS[col]
 
-        # Sort the active dataset in place
         data = self.preview_data if self.preview_data else self.all_preview_data
         try:
-            data.sort(key=lambda r: (key_fn(r) is None or key_fn(r) == "",
-                                     key_fn(r)), reverse=not ascending)
+            data.sort(key=lambda r: (key_fn(r) is None or key_fn(r) == "", key_fn(r)), reverse=not ascending)
         except TypeError:
-            # Fallback for mixed types
             data.sort(key=lambda r: str(key_fn(r)), reverse=not ascending)
 
-        # Update heading to show arrow indicator
         arrow = " ▲" if ascending else " ▼"
         for c in self.SORTABLE_COLUMNS:
             label = c + (arrow if c == col else "")
-            self.tree.heading(c, text=label,
-                              command=lambda cc=c: self._sort_by_column(cc))
+            self.tree.heading(c, text=label, command=lambda cc=c: self._sort_by_column(cc))
 
         self._repopulate_tree(data)
 
     # ---------------------------------------------------------- tree helpers
     def _populate_tree(self, data: List[Dict[str, Any]]):
-        """Clear and repopulate without changing sort headings."""
         self._repopulate_tree(data)
 
     def _repopulate_tree(self, data: List[Dict[str, Any]]):
@@ -354,10 +386,16 @@ class App:
             self.tree.delete(item)
         self.tree_items = {}
 
-        for row in data:
+        for idx, row in enumerate(data):
             row.setdefault("Status", "Pending")
             be_no = row["BE No"]
             tag = self._tag_for_status(row["Status"])
+            tags = (tag,) if tag else ()
+            if idx % 2 == 0 and not tag:
+                tags = ("even",)
+            elif idx % 2 == 0 and tag:
+                tags = (tag, "even")
+
             iid = self.tree.insert("", tk.END, values=(
                 row["Job No"],
                 be_no,
@@ -365,7 +403,7 @@ class App:
                 row["Row Count"],
                 f"₹{row['Total Exempted Duty']:,.2f}",
                 row["Status"]
-            ), tags=(tag,) if tag else ())
+            ), tags=tags)
             self.tree_items[be_no] = iid
 
     @staticmethod
@@ -389,10 +427,8 @@ class App:
             return
         job_no, be_no = values[0], values[1]
         menu = tk.Menu(self.root, tearoff=0)
-        menu.add_command(label=f"Copy Job No: {job_no}",
-                         command=lambda: self.copy_to_clipboard(job_no))
-        menu.add_command(label=f"Copy BE No: {be_no}",
-                         command=lambda: self.copy_to_clipboard(be_no))
+        menu.add_command(label=f"Copy Job No: {job_no}", command=lambda: self.copy_to_clipboard(job_no))
+        menu.add_command(label=f"Copy BE No: {be_no}", command=lambda: self.copy_to_clipboard(be_no))
         menu.post(event.x_root, event.y_root)
 
     def copy_to_clipboard(self, text):
@@ -408,49 +444,44 @@ class App:
         if not filepath:
             return
 
-        self.lbl_status.config(text=f"Processing: {os.path.basename(filepath)}...",
-                               fg=PRIMARY_BLUE)
+        self.filepath_var.set(filepath)
+        self.lbl_status.config(text=f"Processing: {os.path.basename(filepath)}...", foreground=BRAND_BLUE)
         self.root.update()
 
         try:
-            result, sheet_name = process_duty_exemption(filepath)
+            result, sheet_name, applied_rates = process_duty_exemption(filepath)
             self.all_preview_data = result
+            self.applied_rates = applied_rates
             self.preview_data = []
             self.input_file_path = filepath
             self.sheet_name_used = sheet_name
-            self._sort_state = {}  # Reset sort on new file
+            self._sort_state = {}
 
-            # Reset headings to plain (no arrows)
             for col in self.SORTABLE_COLUMNS:
-                self.tree.heading(col, text=col,
-                                  command=lambda c=col: self._sort_by_column(c))
+                self.tree.heading(col, text=col, command=lambda c=col: self._sort_by_column(c))
 
             self._populate_tree(self.all_preview_data)
 
             if self.all_preview_data:
-                self.lbl_status.config(
-                    text=f"Found {len(self.all_preview_data)} BE records for exemption.",
-                    fg=DARK_TEXT)
-                self.btn_sync.config(state=tk.NORMAL)
+                self.lbl_status.config(text=f"Found {len(self.all_preview_data)} BE records for exemption.", foreground=TEXT_DARK)
+                self.btn_sync.config(state="normal")
             else:
-                self.lbl_status.config(
-                    text="No duty exempted records found in the file.", fg=ACCENT_RED)
-                self.btn_sync.config(state=tk.DISABLED)
+                self.lbl_status.config(text="No duty exempted records found in the file.", foreground=ACCENT_RED)
+                self.btn_sync.config(state="disabled")
 
         except MissingCTHError as e:
             msg = (f"Found missing duty rates for the following CTH(s):\n\n"
                    f"{', '.join(map(str, e.missing_cths))}\n\n"
                    f"Please add their duty rates, then upload the file again.")
             messagebox.showwarning("Missing Duty Rates", msg)
-            self.lbl_status.config(text="Missing CTH Duty Rates. Please update and try again.", fg=ACCENT_RED)
-            self.btn_sync.config(state=tk.DISABLED)
-            # Automatically open the dialog with the missing CTHs pre-filled
+            self.lbl_status.config(text="Missing CTH Duty Rates. Please update and try again.", foreground=ACCENT_RED)
+            self.btn_sync.config(state="disabled")
             self.open_duty_rates(missing_cths=e.missing_cths)
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to process file:\n{str(e)}")
-            self.lbl_status.config(text="Error processing file.", fg=ACCENT_RED)
-            self.btn_sync.config(state=tk.DISABLED)
+            self.lbl_status.config(text="Error processing file.", foreground=ACCENT_RED)
+            self.btn_sync.config(state="disabled")
 
     # ------------------------------------------------ month picker dialog
     def open_month_picker(self):
@@ -476,9 +507,8 @@ class App:
         self.root.wait_window(dialog)
 
         if dialog.selected is None:
-            return  # Cancelled
+            return
 
-        import pandas as pd
         if dialog.selected == "ALL":
             self.preview_data = list(self.all_preview_data)
         else:
@@ -494,24 +524,21 @@ class App:
             messagebox.showinfo("No Records", "No records found for the selected month.")
             return
 
-        # Reset statuses for fresh sync
         for row in self.preview_data:
             row["Status"] = "Pending"
 
         self._sort_state = {}
         for col in self.SORTABLE_COLUMNS:
-            self.tree.heading(col, text=col,
-                              command=lambda c=col: self._sort_by_column(c))
+            self.tree.heading(col, text=col, command=lambda c=col: self._sort_by_column(c))
         self._populate_tree(self.preview_data)
 
-        month_label = (
-            "All Months" if dialog.selected == "ALL"
-            else f"{calendar.month_name[dialog.selected[1]]} {dialog.selected[0]}"
-        )
-        proceed = messagebox.askyesno(
-            "Confirm Sync",
-            f"Ready to sync {len(self.preview_data)} records for {month_label}.\n\nProceed?"
-        )
+        rates_text = "\n".join([f"CTH {c}: {r*100:.1f}%" for c, r in self.applied_rates.items()])
+        if not rates_text:
+            rates_text = "None applied"
+
+        month_label = "All Months" if dialog.selected == "ALL" else f"{calendar.month_name[dialog.selected[1]]} {dialog.selected[0]}"
+        proceed = messagebox.askyesno("Confirm Sync", f"Ready to sync {len(self.preview_data)} records for {month_label}.\n\n"
+                                                      f"Applied Duty Rates:\n{rates_text}\n\nProceed?")
         if not proceed:
             return
 
@@ -519,20 +546,17 @@ class App:
 
     # ---------------------------------------------------------- sync
     def _start_sync(self):
-        self.btn_sync.config(state=tk.DISABLED)
-        self.btn_upload.config(state=tk.DISABLED)
+        self.btn_sync.config(state="disabled")
         threading.Thread(target=self._sync_thread, daemon=True).start()
 
     def _sync_thread(self):
-        self.root.after(0, lambda: self.lbl_status.config(
-            text="Initializing API connection...", fg=PRIMARY_BLUE))
+        self.root.after(0, lambda: self.lbl_status.config(text="Initializing API connection...", foreground=BRAND_BLUE))
 
         try:
             if not self.api:
                 self.api = ShaktiCreatorAPI()
         except Exception as e:
-            self.root.after(0, lambda e=e: messagebox.showerror(
-                "API Error", f"Failed to initialize Zoho API:\n{str(e)}"))
+            self.root.after(0, lambda e=e: messagebox.showerror("API Error", f"Failed to initialize Zoho API:\n{str(e)}"))
             self.root.after(0, self._sync_finished)
             return
 
@@ -544,37 +568,30 @@ class App:
             be_no = row["BE No"]
             exempted_duty = row["Total Exempted Duty"]
 
-            self.root.after(0, lambda b=be_no:
-                            self.update_row_status(b, "Syncing...", "syncing"))
+            self.root.after(0, lambda b=be_no: self.update_row_status(b, "Syncing...", "syncing"))
 
             record_id, find_status, existing_duty = self.api.get_record_by_be(be_no)
             if not record_id:
-                reason = ("Duplicate BE No found in Shakti"
-                          if find_status == "DUPLICATE_RECORD" else find_status)
+                reason = "Duplicate BE No found in Shakti" if find_status == "DUPLICATE_RECORD" else find_status
                 status_msg = f"Not Updated ({reason})"
                 error_logs.append(f"BE: {be_no} - {reason}")
-                self.root.after(0, lambda b=be_no, s=status_msg:
-                                self.update_row_status(b, s, "error"))
+                self.root.after(0, lambda b=be_no, s=status_msg: self.update_row_status(b, s, "error"))
                 continue
 
-            # Skip if Duty_exempted already has a non-zero value
             if existing_duty is not None:
                 status_msg = f"Skipped (Already has value: ₹{existing_duty:,.2f})"
-                self.root.after(0, lambda b=be_no, s=status_msg:
-                                self.update_row_status(b, s, "error"))
+                self.root.after(0, lambda b=be_no, s=status_msg: self.update_row_status(b, s, "error"))
                 error_logs.append(f"BE: {be_no} - Already has Duty_exempted = {existing_duty:.2f}")
                 continue
 
             ok, upd_status = self.api.update_duty_exempted(record_id, exempted_duty)
             if ok:
                 success_count += 1
-                self.root.after(0, lambda b=be_no:
-                                self.update_row_status(b, "Updated", "success"))
+                self.root.after(0, lambda b=be_no: self.update_row_status(b, "Updated", "success"))
             else:
                 status_msg = f"Not Updated ({upd_status})"
                 error_logs.append(f"BE: {be_no} - {upd_status}")
-                self.root.after(0, lambda b=be_no, s=status_msg:
-                                self.update_row_status(b, s, "error"))
+                self.root.after(0, lambda b=be_no, s=status_msg: self.update_row_status(b, s, "error"))
 
         self.root.after(0, lambda: self._show_summary(success_count, total, error_logs))
 
@@ -586,7 +603,14 @@ class App:
         iid = self.tree_items.get(be_no)
         if iid and self.tree.exists(iid):
             self.tree.set(iid, "Status", status)
-            self.tree.item(iid, tags=(tag,) if tag else ())
+            
+            # Need to get current tags to keep 'even' tag if present
+            current_tags = self.tree.item(iid, "tags")
+            new_tags = [tag] if tag else []
+            if "even" in current_tags:
+                new_tags.append("even")
+                
+            self.tree.item(iid, tags=tuple(new_tags))
             self.tree.see(iid)
 
     def _show_summary(self, success_count: int, total: int, error_logs: List[str]):
@@ -596,19 +620,14 @@ class App:
             if len(error_logs) > 10:
                 msg += f"\n...and {len(error_logs) - 10} more errors."
             messagebox.showwarning("Sync Summary (with Errors)", msg)
-            self.lbl_status.config(
-                text=f"Sync finished with errors. ({success_count}/{total} updated)",
-                fg=ACCENT_RED)
+            self.lbl_status.config(text=f"Sync finished with errors. ({success_count}/{total} updated)", foreground=ACCENT_RED)
         else:
             messagebox.showinfo("Sync Summary", msg)
-            self.lbl_status.config(
-                text=f"Sync complete. All {total} records updated successfully.",
-                fg="#15803d")
+            self.lbl_status.config(text=f"Sync complete. All {total} records updated successfully.", foreground="#15803d")
         self._sync_finished()
 
     def _sync_finished(self):
-        self.btn_upload.config(state=tk.NORMAL)
-        self.btn_sync.config(state=tk.NORMAL)
+        self.btn_sync.config(state="normal")
 
 
 if __name__ == "__main__":
