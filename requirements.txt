@@ -3,3 +3,4 @@ openpyxl==3.1.2
 python-dotenv==1.0.1
 requests==2.31.0
 pydantic==2.7.1
+Pillow>=10.0,<11.0

@@ -3,8 +3,8 @@
 A desktop application designed for Nagarkot Forwarders Pvt. Ltd. to automate the calculation of exempted duty amounts from customs reports and synchronize them with the Zoho "Shakti" Creator platform.
 
 ## Features
-- **Excel Data Processing:** Ingests master data sheets, aggregates assessable values by `BE No` for rows where `Total Basic Duty (INR)` is exactly zero.
-- **Dynamic Duty Rate Engine:** Custom `duty_rates.json` mapping system to calculate basic duty and Social Welfare Surcharge (SWS). Includes an intuitive GUI to add and edit CTH-based percentage mappings.
+- **Excel Data Processing:** Ingests master data sheets, filters for valid `COO No` entries, and accurately calculates exempted duty—even handling scenarios where basic duty was partially paid.
+- **Dynamic Duty Rate Engine:** Custom `duty_rates.json` mapping system to calculate basic duty and Social Welfare Surcharge (SWS). Includes a secure, key-protected GUI to add and edit CTH-based percentage mappings.
 - **Zoho Creator API Integration:** Validates records by `BE No` to avoid duplicate updates, checks for existing data to prevent overwriting, and patches the `Duty_exempted` field.
 - **Interactive UI:** Built with Tkinter, featuring sortable tables, dynamic status indicators, a month-picker for granular syncing, and robust visual error tracking.
 
